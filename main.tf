@@ -64,7 +64,7 @@ resource "aws_security_group" "secure_sg" {
 
 # Create a Lightsail instance with Nginx
 resource "aws_lightsail_instance" "web" {
-  name                = "nginx-instance"
+  name                = "nginx-instance-prod"
   availability_zone   = "us-west-2a"  # Choose your preferred availability zone
   blueprint_id       = "amazon_linux_2"  # Use the Amazon Linux 2 blueprint
   bundle_id          = "micro_1_0"  # Choose the appropriate instance bundle
