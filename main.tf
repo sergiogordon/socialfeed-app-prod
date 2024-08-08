@@ -15,6 +15,14 @@ resource "aws_vpc" "main" {
   }
 }
 
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "main-internet-gateway"
+  }
+}
+
 resource "aws_subnet" "private" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.1.0/24"
@@ -32,14 +40,14 @@ resource "aws_security_group" "secure_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["10.0.1.0/24"]
+    cidr_blocks = ["0.0.0.0/0"]  # Allow SSH from anywhere (consider security)
   }
 
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["10.0.1.0/24"]
+    cidr_blocks = ["0.0.0.0/0"]  # Allow HTTP traffic from anywhere
   }
 
   egress {
@@ -54,32 +62,46 @@ resource "aws_security_group" "secure_sg" {
   }
 }
 
-# Data source to fetch the latest Amazon Linux AMI ID for the specified region
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]  # Only fetch AMIs owned by Amazon
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]  # Adjust this to match your requirements
-  }
-}
-
-resource "aws_instance" "web" {
-  ami                  = data.aws_ami.amazon_linux.id  # Use the dynamically fetched AMI ID
-  instance_type       = "t2.micro"
-  subnet_id           = aws_subnet.private.id
-  vpc_security_group_ids = [aws_security_group.secure_sg.id]  # Updated parameter
+# Create a Lightsail instance with Nginx
+resource "aws_lightsail_instance" "web" {
+  name                = "nginx-instance"
+  availability_zone   = "us-west-1a"  # Choose your preferred availability zone
+  blueprint_id       = "amazon_linux_2"  # Use the Amazon Linux 2 blueprint
+  bundle_id          = "micro_1_0"  # Choose the appropriate instance bundle
 
   tags = {
-    Name = "web-instance"
+    Name = "nginx-instance"
   }
+
+  user_data = <<-EOF
+              #!/bin/bash
+              # Update packages
+              sudo su
+              yum update -y
+
+              # Install Nginx
+              sudo amazon-linux-extras install nginx1 -y
+
+              # Start Nginx service
+              systemctl start nginx
+              systemctl enable nginx  # Enable Nginx to start on boot
+
+              # Create index.html with the redirect to the new site
+              echo '<html>
+              <head>
+                  <meta http-equiv="Refresh" content="0; url=https://websim.ai/@bluebreath06050310/textgram-a-text-only-social-experience">
+                  <title>Redirecting...</title>
+              </head>
+              <body>
+                  <p>If you are not redirected automatically, follow this <a href="https://websim.ai/@bluebreath06050310/textgram-a-text-only-social-experience">link</a>.</p>
+              </body>
+              </html>' > /usr/share/nginx/html/index.html
+              EOF
 }
 
 resource "aws_s3_bucket" "secure_bucket" {
   bucket = format("my-secure-bucket-%d", random_integer.bucket_suffix.result)  # Use random suffix
 
-  # Removed acl argument
   tags = {
     Name = "secure-bucket"
   }
@@ -110,4 +132,20 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "secure_bucket_enc
       sse_algorithm = "AES256"
     }
   }
+}
+
+# Elastic IP for the Lightsail instance (Static IP)
+resource "aws_lightsail_static_ip" "web_static_ip" {
+  name = "web-static-ip"
+}
+
+resource "aws_lightsail_static_ip_attachment" "static_ip_attachment" {
+  static_ip_name = aws_lightsail_static_ip.web_static_ip.name
+  instance_name  = aws_lightsail_instance.web.name
+}
+
+# Output the static IP
+output "static_ip" {
+  description = "The static IP address attached to the Lightsail instance"
+  value       = aws_lightsail_static_ip.web_static_ip.ip_address
 }
