@@ -2,6 +2,11 @@ provider "aws" {
   region = "us-west-1"
 }
 
+resource "random_integer" "bucket_suffix" {
+  min = 10000  # Minimum 5-digit number
+  max = 99999  # Maximum 5-digit number
+}
+
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
 
@@ -61,10 +66,10 @@ data "aws_ami" "amazon_linux" {
 }
 
 resource "aws_instance" "web" {
-  ami           = data.aws_ami.amazon_linux.id  # Use the dynamically fetched AMI ID
-  instance_type = "t2.micro"
-  subnet_id     = aws_subnet.private.id
-  security_groups = [aws_security_group.secure_sg.name]
+  ami                  = data.aws_ami.amazon_linux.id  # Use the dynamically fetched AMI ID
+  instance_type       = "t2.micro"
+  subnet_id           = aws_subnet.private.id
+  vpc_security_group_ids = [aws_security_group.secure_sg.id]  # Updated parameter
 
   tags = {
     Name = "web-instance"
@@ -72,10 +77,9 @@ resource "aws_instance" "web" {
 }
 
 resource "aws_s3_bucket" "secure_bucket" {
-  bucket = format("my-secure-bucket-%s", timestamp())  # Unique bucket name using timestamp
+  bucket = format("my-secure-bucket-%d", random_integer.bucket_suffix.result)  # Use random suffix
 
-  acl    = "private"
-
+  # Removed acl argument
   tags = {
     Name = "secure-bucket"
   }
