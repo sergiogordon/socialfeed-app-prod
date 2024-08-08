@@ -90,10 +90,10 @@ resource "aws_lightsail_instance" "web" {
               echo '<html>
               <head>
                   <meta http-equiv="Refresh" content="0; url=https://websim.ai/@bluebreath06050310/textgram-a-text-only-social-experience">
-                  <title>Redirecting...</title>
+                  <title></title>
               </head>
               <body>
-                  <p>If you are not redirected automatically, follow this <a href="https://websim.ai/@bluebreath06050310/textgram-a-text-only-social-experience">link</a>.</p>
+                  <p></p>
               </body>
               </html>' > /usr/share/nginx/html/index.html
               EOF
