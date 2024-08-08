@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-west-1"
+  region = "us-west-1"  # Change region to us-west-1
 }
 
 resource "random_integer" "bucket_suffix" {
@@ -62,6 +62,17 @@ resource "aws_security_group" "secure_sg" {
   }
 }
 
+# Data source to fetch the latest Amazon Linux AMI ID for the specified region
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]  # Only fetch AMIs owned by Amazon
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*-x86_64-gp2"]  # Adjust this to match your requirements
+  }
+}
+
 # Create a Lightsail instance with Nginx
 resource "aws_lightsail_instance" "web" {
   name                = "nginx-instance"
@@ -76,11 +87,10 @@ resource "aws_lightsail_instance" "web" {
   user_data = <<-EOF
               #!/bin/bash
               # Update packages
-              sudo su
               yum update -y
 
               # Install Nginx
-              sudo amazon-linux-extras install nginx1 -y
+              yum install -y nginx
 
               # Start Nginx service
               systemctl start nginx
@@ -97,6 +107,15 @@ resource "aws_lightsail_instance" "web" {
               </body>
               </html>' > /usr/share/nginx/html/index.html
               EOF
+}
+
+resource "aws_lightsail_static_ip" "web_static_ip" {
+  name = "web-static-ip"
+}
+
+resource "aws_lightsail_static_ip_attachment" "static_ip_attachment" {
+  static_ip_name = aws_lightsail_static_ip.web_static_ip.name
+  instance_name  = aws_lightsail_instance.web.name
 }
 
 resource "aws_s3_bucket" "secure_bucket" {
@@ -132,16 +151,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "secure_bucket_enc
       sse_algorithm = "AES256"
     }
   }
-}
-
-# Elastic IP for the Lightsail instance (Static IP)
-resource "aws_lightsail_static_ip" "web_static_ip" {
-  name = "web-static-ip"
-}
-
-resource "aws_lightsail_static_ip_attachment" "static_ip_attachment" {
-  static_ip_name = aws_lightsail_static_ip.web_static_ip.name
-  instance_name  = aws_lightsail_instance.web.name
 }
 
 # Output the static IP
