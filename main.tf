@@ -135,8 +135,8 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "secure_bucket_enc
 }
 
 # Elastic IP for the Lightsail instance (Static IP)
-resource "aws_lightsail_static_ip" "web_static_ip" {
-  name = "web-static-ip"
+resource "aws_lightsail_static_ip" "web_static_ip_prod" {
+  name = "web-static-ip-prod"
 }
 
 resource "aws_lightsail_static_ip_attachment" "static_ip_attachment" {
